@@ -1,0 +1,1691 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sistem Daftar Hadir Pengajian</title>
+
+<!-- Library eksternal (CDN) -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jsQR/1.4.0/jsQR.js"></script>
+
+<style>
+:root{
+  --hijau-tua:#0d5c3f;
+  --hijau:#12734f;
+  --hijau-muda:#e8f5ee;
+  --emas:#d4a72c;
+  --emas-muda:#fbf3da;
+  --merah:#d9534f;
+  --oranye:#e08a2c;
+  --biru:#2c6fe0;
+  --abu:#6b7280;
+  --abu-muda:#f3f4f6;
+  --bg:#f5f6f8;
+  --card:#ffffff;
+  --radius:14px;
+  --shadow:0 2px 10px rgba(13,92,63,0.08);
+  --font: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+*{box-sizing:border-box;}
+body{margin:0;font-family:var(--font);background:var(--bg);color:#1f2937;}
+img{max-width:100%;}
+button{font-family:var(--font);cursor:pointer;}
+input,select,textarea{font-family:var(--font);}
+a{text-decoration:none;color:inherit;}
+
+/* ---------- UTILITAS ---------- */
+.hidden{display:none !important;}
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:6px;
+  padding:10px 16px;border-radius:10px;border:none;font-size:14px;font-weight:600;
+  transition:.15s;
+}
+.btn-primary{background:var(--hijau);color:#fff;}
+.btn-primary:hover{background:var(--hijau-tua);}
+.btn-outline{background:#fff;color:var(--hijau);border:1px solid var(--hijau);}
+.btn-outline:hover{background:var(--hijau-muda);}
+.btn-danger{background:var(--merah);color:#fff;}
+.btn-danger:hover{opacity:.9;}
+.btn-block{width:100%;}
+.btn-sm{padding:6px 10px;font-size:12px;border-radius:8px;}
+.btn-icon{background:transparent;border:none;padding:4px 6px;font-size:15px;}
+.card{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:18px;}
+.grid{display:grid;gap:16px;}
+.form-group{margin-bottom:14px;}
+.form-group label{display:block;font-size:13px;font-weight:600;margin-bottom:6px;color:#374151;}
+.form-control{
+  width:100%;padding:10px 12px;border:1px solid #dfe3e8;border-radius:10px;font-size:14px;background:#fff;
+}
+.form-control:focus{outline:none;border-color:var(--hijau);}
+.form-row{display:flex;gap:12px;flex-wrap:wrap;}
+.form-row>.form-group{flex:1;min-width:160px;}
+.radio-group{display:flex;gap:16px;align-items:center;}
+.radio-group label{display:flex;align-items:center;gap:6px;font-weight:500;font-size:14px;color:#374151;}
+.badge{padding:3px 10px;border-radius:20px;font-size:12px;font-weight:600;}
+.badge-hadir{background:#e6f6ea;color:#1a8a3f;}
+.badge-izin{background:#fdf1e0;color:#b9750f;}
+.badge-sakit{background:#fdeaea;color:#c23b34;}
+.badge-alfa{background:#f1f1f1;color:#666;}
+.toast{
+  position:fixed;bottom:20px;right:20px;background:#1f2937;color:#fff;padding:12px 18px;
+  border-radius:10px;font-size:14px;z-index:9999;box-shadow:0 4px 14px rgba(0,0,0,.25);
+  animation:fadein .2s ease-out;
+}
+@keyframes fadein{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+
+/* ---------- LOGIN ---------- */
+#loginPage{
+  min-height:100vh;display:flex;align-items:center;justify-content:center;
+  background:linear-gradient(135deg,var(--hijau-tua),var(--hijau) 60%, #0a4531);
+  padding:20px;
+}
+.login-box{background:#fff;border-radius:20px;padding:36px 32px;width:100%;max-width:380px;box-shadow:0 20px 50px rgba(0,0,0,.25);text-align:center;}
+.login-box .app-logo{width:64px;height:64px;border-radius:16px;object-fit:cover;margin-bottom:10px;background:var(--hijau-muda);}
+.login-box h1{font-size:18px;margin:6px 0 2px;color:var(--hijau-tua);}
+.login-box p.sub{font-size:13px;color:var(--abu);margin-bottom:22px;}
+.login-hint{margin-top:16px;font-size:12px;color:var(--abu);background:var(--hijau-muda);padding:10px;border-radius:10px;}
+
+/* ---------- SHELL / LAYOUT ADMIN ---------- */
+#appShell{display:flex;min-height:100vh;}
+#sidebar{
+  width:230px;background:var(--hijau-tua);color:#fff;flex-shrink:0;display:flex;flex-direction:column;
+  position:sticky;top:0;height:100vh;overflow-y:auto;
+}
+.sidebar-brand{display:flex;align-items:center;gap:10px;padding:18px 16px;border-bottom:1px solid rgba(255,255,255,.12);}
+.sidebar-brand img{width:38px;height:38px;border-radius:10px;object-fit:cover;background:#fff;}
+.sidebar-brand div b{display:block;font-size:14px;}
+.sidebar-brand div span{font-size:11px;opacity:.75;}
+.nav-list{list-style:none;padding:10px;margin:0;flex:1;}
+.nav-list li{margin-bottom:2px;}
+.nav-list a{
+  display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;font-size:13.5px;
+  color:rgba(255,255,255,.85);transition:.15s;
+}
+.nav-list a:hover{background:rgba(255,255,255,.08);}
+.nav-list a.active{background:var(--emas);color:#4a3600;font-weight:700;}
+.sidebar-foot{padding:14px 16px;border-top:1px solid rgba(255,255,255,.12);font-size:12px;opacity:.8;}
+#sidebar .logout-btn{width:100%;margin-top:8px;background:rgba(255,255,255,.1);color:#fff;border:none;padding:8px;border-radius:8px;font-size:12.5px;}
+
+#mainArea{flex:1;min-width:0;}
+#topbar{
+  background:#fff;padding:14px 24px;display:flex;justify-content:space-between;align-items:center;
+  box-shadow:0 1px 4px rgba(0,0,0,.05);position:sticky;top:0;z-index:50;
+}
+#topbar h2{margin:0;font-size:18px;color:var(--hijau-tua);}
+#topbar .status-pill{font-size:11.5px;padding:5px 10px;border-radius:20px;font-weight:600;}
+.status-online{background:#e6f6ea;color:#1a8a3f;}
+.status-offline{background:#fdeaea;color:#c23b34;}
+.status-syncing{background:#fdf1e0;color:#b9750f;}
+#pageContent{padding:22px 24px 60px;}
+
+/* Mobile sidebar */
+.mobile-topbar{display:none;}
+@media(max-width:900px){
+  #sidebar{position:fixed;left:-250px;z-index:200;transition:.2s;box-shadow:0 0 20px rgba(0,0,0,.3);}
+  #sidebar.open{left:0;}
+  .mobile-topbar{
+    display:flex;align-items:center;gap:12px;background:var(--hijau-tua);color:#fff;padding:14px 16px;
+    position:sticky;top:0;z-index:150;
+  }
+  #topbar{padding:12px 16px;}
+  #pageContent{padding:16px;}
+  .sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:190;}
+  .sidebar-overlay.show{display:block;}
+}
+
+/* ---------- DASHBOARD ---------- */
+.stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px;margin-bottom:18px;}
+.stat-card{background:#fff;border-radius:14px;padding:16px;box-shadow:var(--shadow);}
+.stat-card .icon{font-size:20px;margin-bottom:8px;}
+.stat-card .num{font-size:22px;font-weight:800;color:var(--hijau-tua);}
+.stat-card .lbl{font-size:12.5px;color:var(--abu);}
+.chart-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:18px;}
+@media(max-width:900px){.chart-grid{grid-template-columns:1fr;}}
+.chart-box{height:230px;}
+
+table.data-table{width:100%;border-collapse:collapse;font-size:13.5px;}
+table.data-table th{text-align:left;padding:10px;border-bottom:2px solid var(--abu-muda);color:var(--abu);font-size:12.5px;text-transform:uppercase;letter-spacing:.3px;}
+table.data-table td{padding:10px;border-bottom:1px solid var(--abu-muda);}
+table.data-table tbody tr:hover{background:var(--hijau-muda);}
+.table-wrap{overflow-x:auto;}
+.section-title{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:10px;}
+.section-title h3{margin:0;font-size:16px;color:var(--hijau-tua);}
+
+/* ---------- CARDS LIST (kategori, kegiatan) ---------- */
+.item-row{
+  display:flex;justify-content:space-between;align-items:center;padding:12px 14px;border:1px solid var(--abu-muda);
+  border-radius:10px;margin-bottom:8px;
+}
+.item-row .info b{display:block;font-size:14px;}
+.item-row .info span{font-size:12px;color:var(--abu);}
+.item-actions{display:flex;gap:6px;}
+
+/* ---------- SIGNATURE ---------- */
+.sig-wrap{border:2px dashed #c9d0d8;border-radius:12px;overflow:hidden;touch-action:none;background:#fff;}
+canvas#sigPad{display:block;width:100%;height:180px;touch-action:none;}
+
+/* ---------- MODAL ---------- */
+.modal-overlay{
+  position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;
+  z-index:500;padding:16px;
+}
+.modal-box{background:#fff;border-radius:16px;max-width:520px;width:100%;max-height:90vh;overflow-y:auto;padding:22px;}
+.modal-box h3{margin-top:0;color:var(--hijau-tua);}
+.modal-close-x{float:right;background:none;border:none;font-size:20px;cursor:pointer;color:var(--abu);}
+
+/* ---------- PUBLIC ABSEN PAGE ---------- */
+#publicPage{min-height:100vh;background:linear-gradient(180deg,var(--hijau-tua),#0a4531);padding:20px;}
+.public-wrap{max-width:480px;margin:0 auto;}
+.public-card{background:#fff;border-radius:18px;padding:22px;margin-bottom:14px;box-shadow:0 10px 30px rgba(0,0,0,.2);}
+.public-header{text-align:center;color:#fff;padding:20px 10px;}
+.public-header img{width:56px;height:56px;border-radius:14px;object-fit:cover;background:#fff;margin-bottom:8px;}
+.success-check{width:70px;height:70px;border-radius:50%;background:#1a8a3f;color:#fff;display:flex;align-items:center;justify-content:center;font-size:34px;margin:0 auto 14px;}
+.qr-frame{display:flex;justify-content:center;padding:14px;background:#fff;border-radius:12px;}
+.center{text-align:center;}
+.small-muted{font-size:12.5px;color:var(--abu);}
+
+/* ---------- PDF TEMPLATE (offscreen render target) ---------- */
+#pdfRenderArea{position:fixed;left:-9999px;top:0;width:780px;background:#fff;padding:30px;}
+.pdf-head{display:flex;align-items:center;gap:16px;border-bottom:3px solid var(--hijau-tua);padding-bottom:14px;margin-bottom:16px;}
+.pdf-head img{width:64px;height:64px;object-fit:cover;border-radius:8px;}
+.pdf-head h1{font-size:16px;margin:0;color:var(--hijau-tua);}
+.pdf-head p{font-size:12px;margin:2px 0 0;color:#444;}
+.pdf-meta{font-size:12px;margin-bottom:14px;}
+.pdf-table{width:100%;border-collapse:collapse;font-size:11px;}
+.pdf-table th,.pdf-table td{border:1px solid #999;padding:5px 6px;text-align:left;}
+.pdf-table th{background:var(--hijau-muda);}
+.pdf-sig-img{width:90px;height:36px;object-fit:contain;}
+.pdf-footer{display:flex;justify-content:space-between;margin-top:40px;font-size:12px;}
+.pdf-footer .stamp-area{
+  width:110px;height:110px;border:2px dashed #999;border-radius:50%;display:flex;align-items:center;justify-content:center;
+  text-align:center;color:#999;font-size:10px;margin:10px auto 6px;
+}
+.sig-line{border-top:1px solid #333;margin-top:55px;padding-top:4px;width:200px;text-align:center;}
+
+/* scanner */
+#qrVideoWrap{position:relative;border-radius:12px;overflow:hidden;background:#000;}
+#qrVideo{width:100%;display:block;}
+#qrCanvasHidden{display:none;}
+.scan-frame{position:absolute;inset:15%;border:3px solid var(--emas);border-radius:16px;pointer-events:none;}
+</style>
+</head>
+<body>
+
+<!-- ============ LOGIN PAGE ============ -->
+<div id="loginPage">
+  <div class="login-box">
+    <img id="loginLogo" class="app-logo" src="" alt="logo">
+    <h1 id="loginOrgName">Masjid Al-Manshurin</h1>
+    <p class="sub" id="loginGroupName">Sistem Daftar Hadir Pengajian</p>
+    <form id="loginForm">
+      <div class="form-group" style="text-align:left">
+        <label>Username</label>
+        <input class="form-control" id="loginUsername" placeholder="Masukkan username" required>
+      </div>
+      <div class="form-group" style="text-align:left">
+        <label>Password</label>
+        <input class="form-control" id="loginPassword" type="password" placeholder="Masukkan password" required>
+      </div>
+      <button type="submit" class="btn btn-primary btn-block">Masuk</button>
+    </form>
+    <div class="login-hint">Login pertama kali? Gunakan <b>admin</b> / <b>admin123</b><br>lalu segera ganti password di menu Pengaturan &gt; User.</div>
+  </div>
+</div>
+
+<!-- ============ PUBLIC SELF-SERVICE ABSEN PAGE (dibuka lewat QR/link, tanpa login) ============ -->
+<div id="publicPage" class="hidden">
+  <div class="public-wrap" id="publicWrap"></div>
+</div>
+
+<!-- ============ ADMIN APP SHELL ============ -->
+<div id="appShell" class="hidden">
+  <div class="sidebar-overlay" id="sidebarOverlay"></div>
+  <aside id="sidebar">
+    <div class="sidebar-brand">
+      <img id="sbLogo" src="" alt="logo">
+      <div>
+        <b id="sbOrgName">Masjid Al-Manshurin</b>
+        <span id="sbGroupName">Kelompok Latambaga</span>
+      </div>
+    </div>
+    <ul class="nav-list" id="navList">
+      <li><a href="#dashboard" data-page="dashboard">🏠 Dashboard</a></li>
+      <li><a href="#absensi" data-page="absensi">📝 Absensi</a></li>
+      <li><a href="#peserta" data-page="peserta">👥 Peserta</a></li>
+      <li><a href="#kategori" data-page="kategori">🗂️ Kategori Pengajian</a></li>
+      <li><a href="#kegiatan" data-page="kegiatan">📅 Kegiatan</a></li>
+      <li><a href="#infak" data-page="infak">💰 Infak</a></li>
+      <li><a href="#laporan" data-page="laporan">📊 Laporan</a></li>
+      <li><a href="#export" data-page="export">📤 Export Data</a></li>
+      <li><a href="#pengaturan" data-page="pengaturan">⚙️ Pengaturan</a></li>
+      <li><a href="#user" data-page="user">👤 User</a></li>
+      <li><a href="#backup" data-page="backup">💾 Backup & Restore</a></li>
+      <li><a href="#log" data-page="log">🧾 Log Aktivitas</a></li>
+    </ul>
+    <div class="sidebar-foot">
+      Masuk sebagai <b id="currentUserLabel">Admin</b>
+      <button class="logout-btn" id="btnLogout">Keluar</button>
+    </div>
+  </aside>
+
+  <div id="mainArea">
+    <div class="mobile-topbar">
+      <button id="btnBurger" style="background:none;border:none;color:#fff;font-size:20px;">☰</button>
+      <b id="mtOrgName">Sistem Absensi Pengajian</b>
+    </div>
+    <div id="topbar">
+      <h2 id="pageTitle">Dashboard</h2>
+      <span class="status-pill status-offline" id="connStatus">⚪ Belum Terhubung Sheets</span>
+    </div>
+    <div id="pageContent"></div>
+  </div>
+</div>
+
+<!-- modal generik -->
+<div class="modal-overlay hidden" id="modalOverlay">
+  <div class="modal-box" id="modalBox"></div>
+</div>
+
+<!-- Area offscreen untuk render PDF -->
+<div id="pdfRenderArea"></div>
+
+<script>
+/* =========================================================================================
+   SISTEM DAFTAR HADIR PENGAJIAN — APP.JS
+   Database utama: Google Spreadsheet (via Google Apps Script Web App)
+   localStorage dipakai sebagai CACHE OFFLINE + ANTRIAN SINKRONISASI
+   ========================================================================================= */
+
+/* ---------------------------------------------------------------------------------------
+   0. UTILITAS DASAR
+--------------------------------------------------------------------------------------- */
+const LSK = {
+  settings:'ap_settings', users:'ap_users', categories:'ap_categories', activities:'ap_activities',
+  participants:'ap_participants', attendance:'ap_attendance', session:'ap_session',
+  queue:'ap_syncqueue', log:'ap_log'
+};
+
+function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,8); }
+function nowISO(){ return new Date().toISOString(); }
+function rupiah(n){ n = Number(n)||0; return 'Rp ' + n.toLocaleString('id-ID'); }
+function fmtDateID(d){
+  if(!d) return '-';
+  const dt = new Date(d);
+  if(isNaN(dt)) return d;
+  return dt.toLocaleDateString('id-ID',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+}
+function fmtTime(d){
+  const dt = new Date(d);
+  if(isNaN(dt)) return '';
+  return dt.toTimeString().slice(0,5);
+}
+async function sha256(str){
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
+  return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
+}
+function toast(msg, type){
+  const el = document.createElement('div');
+  el.className = 'toast';
+  if(type==='error') el.style.background = '#c23b34';
+  if(type==='success') el.style.background = '#1a8a3f';
+  el.textContent = msg;
+  document.body.appendChild(el);
+  setTimeout(()=>el.remove(), 3200);
+}
+function escapeHtml(s){
+  return String(s??'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function qs(sel, root){ return (root||document).querySelector(sel); }
+function qsa(sel, root){ return Array.from((root||document).querySelectorAll(sel)); }
+
+/* ---------------------------------------------------------------------------------------
+   1. LAPISAN DATA (get/set localStorage)
+--------------------------------------------------------------------------------------- */
+function getData(key){ try{ return JSON.parse(localStorage.getItem(key)) || []; }catch(e){ return []; } }
+function setData(key, val){ localStorage.setItem(key, JSON.stringify(val)); }
+function getSettings(){
+  try{ return JSON.parse(localStorage.getItem(LSK.settings)) || defaultSettings(); }
+  catch(e){ return defaultSettings(); }
+}
+function setSettings(s){ localStorage.setItem(LSK.settings, JSON.stringify(s)); }
+function defaultSettings(){
+  return {
+    orgName:'Masjid Al-Manshurin', groupName:'Kelompok Latambaga', address:'',
+    logo:'', themeColor:'#0d5c3f',
+    sheetsUrl:'', apiKey:'', syncEnabled:false,
+    picName:'', picTitle:'Penanggung Jawab'
+  };
+}
+function addLog(action){
+  const log = getData(LSK.log);
+  const session = getSession();
+  log.unshift({id:uid(), time:nowISO(), user: session?session.username:'system', action});
+  setData(LSK.log, log.slice(0,300));
+}
+
+/* ---------------------------------------------------------------------------------------
+   2. SESI LOGIN
+--------------------------------------------------------------------------------------- */
+function getSession(){ try{ return JSON.parse(sessionStorage.getItem(LSK.session)); }catch(e){ return null; } }
+function setSession(u){ sessionStorage.setItem(LSK.session, JSON.stringify(u)); }
+function clearSession(){ sessionStorage.removeItem(LSK.session); }
+
+/* ---------------------------------------------------------------------------------------
+   3. SEED DATA AWAL (dijalankan sekali saat pertama kali dibuka)
+--------------------------------------------------------------------------------------- */
+async function seedIfEmpty(){
+  if(!localStorage.getItem(LSK.settings)) setSettings(defaultSettings());
+
+  if(getData(LSK.users).length === 0){
+    const hash = await sha256('admin123');
+    setData(LSK.users, [{id:uid(), username:'admin', passwordHash:hash, role:'Admin', name:'Admin Utama'}]);
+  }
+  if(getData(LSK.categories).length === 0){
+    setData(LSK.categories, [
+      {id:uid(), name:'Pengajian Rutin', desc:'Pengajian mingguan rutin', active:true},
+      {id:uid(), name:'Pengajian Ibu-Ibu', desc:'Khusus jamaah ibu-ibu', active:true},
+      {id:uid(), name:'Pengajian Muda-Mudi', desc:'Khusus jamaah muda-mudi', active:true},
+      {id:uid(), name:'Pengajian Remaja', desc:'Khusus jamaah remaja', active:true},
+      {id:uid(), name:'Pengajian Caberawit', desc:'Khusus anak-anak/caberawit', active:true},
+    ]);
+  }
+  if(getData(LSK.activities).length === 0){
+    const cats = getData(LSK.categories);
+    const catId = cats[0] ? cats[0].id : '';
+    setData(LSK.activities, [
+      {id:uid(), name:'Pengajian Ahad Pagi', categoryId:catId, date:new Date().toISOString().slice(0,10), timeStart:'08:00', timeEnd:'Selesai', location:'Aula Masjid', active:true},
+    ]);
+  }
+  if(getData(LSK.participants).length === 0) setData(LSK.participants, []);
+  if(getData(LSK.attendance).length === 0) setData(LSK.attendance, []);
+  if(getData(LSK.queue).length === 0) setData(LSK.queue, []);
+}
+
+/* ---------------------------------------------------------------------------------------
+   4. SINKRONISASI GOOGLE SPREADSHEET
+   Semua perubahan pada Peserta / Kategori / Kegiatan / Absensi dikirim ke Apps Script.
+   Jika gagal (offline / belum diset) -> masuk antrian (ap_syncqueue) untuk dicoba ulang.
+--------------------------------------------------------------------------------------- */
+let isSyncing = false;
+
+function queuePush(sheet, action, data){
+  const q = getData(LSK.queue);
+  q.push({id:uid(), sheet, action, data, time:nowISO()});
+  setData(LSK.queue, q);
+  updateConnStatus();
+}
+
+async function sendToSheets(sheet, action, data){
+  const s = getSettings();
+  if(!s.syncEnabled || !s.sheetsUrl){ queuePush(sheet, action, data); return {ok:false, offline:true}; }
+  try{
+    const res = await fetch(s.sheetsUrl, {
+      method:'POST',
+      headers:{'Content-Type':'text/plain;charset=utf-8'}, // hindari CORS preflight ke Apps Script
+      body: JSON.stringify({apiKey:s.apiKey, action, sheet, data})
+    });
+    const json = await res.json();
+    if(!json.success){ queuePush(sheet, action, data); return {ok:false, error:json.message}; }
+    return {ok:true, result:json.result};
+  }catch(err){
+    queuePush(sheet, action, data);
+    return {ok:false, error:String(err)};
+  }
+}
+
+async function flushQueue(){
+  const s = getSettings();
+  if(!s.syncEnabled || !s.sheetsUrl) return;
+  let q = getData(LSK.queue);
+  if(q.length === 0){ updateConnStatus(); return; }
+  isSyncing = true; updateConnStatus();
+  const remaining = [];
+  for(const item of q){
+    try{
+      const res = await fetch(s.sheetsUrl, {
+        method:'POST',
+        headers:{'Content-Type':'text/plain;charset=utf-8'},
+        body: JSON.stringify({apiKey:s.apiKey, action:item.action, sheet:item.sheet, data:item.data})
+      });
+      const json = await res.json();
+      if(!json.success) remaining.push(item);
+    }catch(e){ remaining.push(item); }
+  }
+  setData(LSK.queue, remaining);
+  isSyncing = false; updateConnStatus();
+}
+
+async function pullFromSheets(){
+  const s = getSettings();
+  if(!s.syncEnabled || !s.sheetsUrl){ toast('Koneksi Google Sheets belum diatur', 'error'); return; }
+  isSyncing = true; updateConnStatus();
+  try{
+    const sheets = [
+      {name:'Categories', key:LSK.categories},
+      {name:'Activities', key:LSK.activities},
+      {name:'Participants', key:LSK.participants},
+      {name:'Attendance', key:LSK.attendance},
+    ];
+    for(const sh of sheets){
+      const url = s.sheetsUrl + '?action=read&sheet=' + sh.name + '&apiKey=' + encodeURIComponent(s.apiKey);
+      const res = await fetch(url);
+      const json = await res.json();
+      if(json.success && Array.isArray(json.result)) setData(sh.key, json.result);
+    }
+    toast('Data berhasil ditarik dari Google Spreadsheet', 'success');
+  }catch(e){
+    toast('Gagal menarik data: ' + e, 'error');
+  }
+  isSyncing = false; updateConnStatus();
+  renderPage(currentPage);
+}
+
+function updateConnStatus(){
+  const el = qs('#connStatus');
+  if(!el) return;
+  const s = getSettings();
+  const q = getData(LSK.queue);
+  if(!s.syncEnabled || !s.sheetsUrl){
+    el.className = 'status-pill status-offline';
+    el.textContent = '⚪ Belum Terhubung Sheets';
+  }else if(isSyncing){
+    el.className = 'status-pill status-syncing';
+    el.textContent = '🟡 Sinkronisasi...';
+  }else if(q.length > 0){
+    el.className = 'status-pill status-syncing';
+    el.textContent = '🟡 ' + q.length + ' data menunggu sync';
+  }else if(navigator.onLine){
+    el.className = 'status-pill status-online';
+    el.textContent = '🟢 Terhubung Google Sheets';
+  }else{
+    el.className = 'status-pill status-offline';
+    el.textContent = '⚪ Offline (mode lokal)';
+  }
+}
+window.addEventListener('online', flushQueue);
+setInterval(flushQueue, 25000);
+
+/* ---------------------------------------------------------------------------------------
+   5. APLIKASI BRANDING (terapkan logo & nama ke seluruh UI)
+--------------------------------------------------------------------------------------- */
+function applyBranding(){
+  const s = getSettings();
+  const logoSrc = s.logo || DEFAULT_LOGO_SVG;
+  qsa('#loginLogo,#sbLogo').forEach(el=> el.src = logoSrc);
+  qs('#loginOrgName').textContent = s.orgName || 'Nama Organisasi';
+  qs('#loginGroupName').textContent = s.groupName || 'Sistem Daftar Hadir Pengajian';
+  qs('#sbOrgName').textContent = s.orgName || 'Nama Organisasi';
+  qs('#sbGroupName').textContent = s.groupName || '';
+  qs('#mtOrgName').textContent = s.orgName || 'Sistem Absensi';
+  document.documentElement.style.setProperty('--hijau-tua', s.themeColor || '#0d5c3f');
+}
+const DEFAULT_LOGO_SVG = 'data:image/svg+xml;utf8,' + encodeURIComponent(
+  `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="14" fill="#0d5c3f"/><text x="32" y="42" font-size="28" text-anchor="middle" fill="#d4a72c" font-family="Arial">🕌</text></svg>`
+);
+
+/* ---------------------------------------------------------------------------------------
+   6. ROUTER SEDERHANA
+--------------------------------------------------------------------------------------- */
+let currentPage = 'dashboard';
+
+function initRouter(){
+  window.addEventListener('hashchange', handleRoute);
+  handleRoute();
+}
+function handleRoute(){
+  const hash = (location.hash || '#dashboard').replace('#','');
+  if(!getSession()){
+    showLogin();
+    return;
+  }
+  currentPage = hash;
+  qsa('#navList a').forEach(a=> a.classList.toggle('active', a.dataset.page===hash));
+  const titleMap = {
+    dashboard:'Dashboard', absensi:'Absensi', peserta:'Data Peserta', kategori:'Kategori Pengajian',
+    kegiatan:'Kegiatan', infak:'Rekap Infak', laporan:'Laporan', export:'Export Data',
+    pengaturan:'Pengaturan', user:'Manajemen User', backup:'Backup & Restore', log:'Log Aktivitas'
+  };
+  qs('#pageTitle').textContent = titleMap[hash] || 'Dashboard';
+  renderPage(hash);
+  qs('#sidebar').classList.remove('open');
+  qs('#sidebarOverlay').classList.remove('show');
+}
+function renderPage(page){
+  const map = {
+    dashboard: renderDashboard, absensi: renderAbsensi, peserta: renderPeserta,
+    kategori: renderKategori, kegiatan: renderKegiatan, infak: renderInfak,
+    laporan: renderLaporan, export: renderExport, pengaturan: renderPengaturan,
+    user: renderUser, backup: renderBackup, log: renderLog
+  };
+  const fn = map[page] || renderDashboard;
+  qs('#pageContent').innerHTML = '';
+  fn();
+}
+
+/* ---------------------------------------------------------------------------------------
+   7. LOGIN / LOGOUT
+--------------------------------------------------------------------------------------- */
+function showLogin(){
+  qs('#loginPage').classList.remove('hidden');
+  qs('#appShell').classList.add('hidden');
+  qs('#publicPage').classList.add('hidden');
+  applyBranding();
+}
+function showApp(){
+  qs('#loginPage').classList.add('hidden');
+  qs('#appShell').classList.remove('hidden');
+  applyBranding();
+  const s = getSession();
+  qs('#currentUserLabel').textContent = s ? (s.name || s.username) : '';
+  handleRoute();
+  updateConnStatus();
+}
+async function doLogin(username, password){
+  const users = getData(LSK.users);
+  const hash = await sha256(password);
+  const u = users.find(x=> x.username.toLowerCase() === username.toLowerCase() && x.passwordHash === hash);
+  if(!u){ toast('Username atau password salah', 'error'); return; }
+  setSession({id:u.id, username:u.username, role:u.role, name:u.name});
+  addLog('Login sebagai ' + u.username);
+  showApp();
+}
+qs('#loginForm').addEventListener('submit', function(e){
+  e.preventDefault();
+  doLogin(qs('#loginUsername').value.trim(), qs('#loginPassword').value);
+});
+qs('#btnLogout').addEventListener('click', function(){
+  addLog('Logout');
+  clearSession();
+  location.hash = '#dashboard';
+  showLogin();
+});
+qs('#btnBurger')?.addEventListener('click', ()=>{
+  qs('#sidebar').classList.toggle('open');
+  qs('#sidebarOverlay').classList.toggle('show');
+});
+qs('#sidebarOverlay')?.addEventListener('click', ()=>{
+  qs('#sidebar').classList.remove('open');
+  qs('#sidebarOverlay').classList.remove('show');
+});
+
+/* ---------------------------------------------------------------------------------------
+   8. MODAL HELPER
+--------------------------------------------------------------------------------------- */
+function openModal(html){
+  qs('#modalBox').innerHTML = '<button class="modal-close-x" onclick="closeModal()">✕</button>' + html;
+  qs('#modalOverlay').classList.remove('hidden');
+}
+function closeModal(){ qs('#modalOverlay').classList.add('hidden'); }
+qs('#modalOverlay').addEventListener('click', function(e){ if(e.target===this) closeModal(); });
+
+/* =========================================================================================
+   9. HALAMAN: DASHBOARD
+   ========================================================================================= */
+function renderDashboard(){
+  const attendance = getData(LSK.attendance);
+  const participants = getData(LSK.participants);
+  const today = new Date().toISOString().slice(0,10);
+  const todayAtt = attendance.filter(a => (a.createdAt||'').slice(0,10) === today);
+
+  const hadir = attendance.filter(a=>a.status==='Hadir').length;
+  const izin = attendance.filter(a=>a.status==='Izin').length;
+  const sakit = attendance.filter(a=>a.status==='Sakit').length;
+  const alfa = attendance.filter(a=>a.status==='Alfa').length;
+  const totalInfakToday = todayAtt.reduce((sum,a)=> sum + (Number(a.infak)||0), 0);
+
+  qs('#pageContent').innerHTML = `
+    <div class="stat-grid">
+      <div class="stat-card"><div class="icon">👥</div><div class="num">${participants.length}</div><div class="lbl">Total Peserta</div></div>
+      <div class="stat-card"><div class="icon">✅</div><div class="num">${hadir}</div><div class="lbl">Hadir</div></div>
+      <div class="stat-card"><div class="icon">📄</div><div class="num">${izin}</div><div class="lbl">Izin</div></div>
+      <div class="stat-card"><div class="icon">🤒</div><div class="num">${sakit}</div><div class="lbl">Sakit</div></div>
+      <div class="stat-card"><div class="icon">❌</div><div class="num">${alfa}</div><div class="lbl">Alfa</div></div>
+      <div class="stat-card"><div class="icon">💰</div><div class="num" style="font-size:16px">${rupiah(totalInfakToday)}</div><div class="lbl">Infak Hari Ini</div></div>
+    </div>
+    <div class="chart-grid">
+      <div class="card"><div class="section-title"><h3>Grafik Kehadiran (14 hari terakhir)</h3></div><div class="chart-box"><canvas id="chartHadir"></canvas></div></div>
+      <div class="card"><div class="section-title"><h3>Grafik Infak (14 hari terakhir)</h3></div><div class="chart-box"><canvas id="chartInfak"></canvas></div></div>
+    </div>
+    <div class="card">
+      <div class="section-title"><h3>Absensi Terbaru</h3><a href="#absensi" class="btn btn-outline btn-sm">Lihat Semua</a></div>
+      <div class="table-wrap"><table class="data-table">
+        <thead><tr><th>Nama</th><th>Kegiatan</th><th>Waktu</th><th>Kehadiran</th><th>Infak</th></tr></thead>
+        <tbody>${attendance.slice(-8).reverse().map(a=>`
+          <tr><td>${escapeHtml(a.participantName)}</td><td>${escapeHtml(a.activityName)}</td>
+          <td>${fmtTime(a.createdAt)} ${a.timezone||''}</td>
+          <td><span class="badge badge-${statusClass(a.status)}">${a.status}</span></td>
+          <td>${rupiah(a.infak)}</td></tr>`).join('') || '<tr><td colspan="5" class="small-muted">Belum ada data absensi</td></tr>'}
+        </tbody></table></div>
+    </div>
+  `;
+
+  // siapkan data 14 hari
+  const days = [...Array(14)].map((_,i)=>{
+    const d = new Date(); d.setDate(d.getDate() - (13-i));
+    return d.toISOString().slice(0,10);
+  });
+  const hadirPerHari = days.map(d => attendance.filter(a=> (a.createdAt||'').slice(0,10)===d && a.status==='Hadir').length);
+  const infakPerHari = days.map(d => attendance.filter(a=> (a.createdAt||'').slice(0,10)===d).reduce((s,a)=>s+(Number(a.infak)||0),0));
+  const labels = days.map(d=> d.slice(8,10)+'/'+d.slice(5,7));
+
+  new Chart(qs('#chartHadir'), {
+    type:'line',
+    data:{ labels, datasets:[{ label:'Hadir', data:hadirPerHari, borderColor:'#0d5c3f', backgroundColor:'rgba(13,92,63,.15)', fill:true, tension:.35 }]},
+    options:{ plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true}} }
+  });
+  new Chart(qs('#chartInfak'), {
+    type:'bar',
+    data:{ labels, datasets:[{ label:'Infak', data:infakPerHari, backgroundColor:'#d4a72c' }]},
+    options:{ plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true}} }
+  });
+}
+function statusClass(s){
+  return s==='Hadir'?'hadir': s==='Izin'?'izin': s==='Sakit'?'sakit':'alfa';
+}
+
+/* =========================================================================================
+   10. HALAMAN: KATEGORI PENGAJIAN (CRUD)
+   ========================================================================================= */
+function renderKategori(){
+  const cats = getData(LSK.categories);
+  qs('#pageContent').innerHTML = `
+    <div class="card">
+      <div class="section-title"><h3>Kelola Kategori Pengajian</h3><button class="btn btn-primary btn-sm" onclick="formKategori()">+ Tambah Kategori</button></div>
+      <div id="listKategori">${cats.map(c=>`
+        <div class="item-row">
+          <div class="info"><b>${escapeHtml(c.name)}</b><span>${escapeHtml(c.desc||'')} ${c.active? '' : '· (nonaktif)'}</span></div>
+          <div class="item-actions">
+            <button class="btn btn-outline btn-sm" onclick="formKategori('${c.id}')">Edit</button>
+            <button class="btn btn-danger btn-sm" onclick="hapusKategori('${c.id}')">Hapus</button>
+          </div>
+        </div>`).join('') || '<p class="small-muted">Belum ada kategori.</p>'}
+      </div>
+    </div>`;
+}
+function formKategori(id){
+  const cats = getData(LSK.categories);
+  const item = cats.find(c=>c.id===id) || {name:'',desc:'',active:true};
+  openModal(`
+    <h3>${id? 'Edit':'Tambah'} Kategori Pengajian</h3>
+    <div class="form-group"><label>Nama Kategori</label><input class="form-control" id="fkName" value="${escapeHtml(item.name)}"></div>
+    <div class="form-group"><label>Deskripsi</label><input class="form-control" id="fkDesc" value="${escapeHtml(item.desc||'')}"></div>
+    <div class="form-group"><label><input type="checkbox" id="fkActive" ${item.active!==false?'checked':''}> Aktif</label></div>
+    <button class="btn btn-primary btn-block" onclick="simpanKategori('${id||''}')">Simpan</button>
+  `);
+}
+async function simpanKategori(id){
+  const cats = getData(LSK.categories);
+  const name = qs('#fkName').value.trim();
+  if(!name){ toast('Nama kategori wajib diisi','error'); return; }
+  const data = { name, desc: qs('#fkDesc').value.trim(), active: qs('#fkActive').checked };
+  if(id){
+    const idx = cats.findIndex(c=>c.id===id);
+    cats[idx] = {...cats[idx], ...data};
+    setData(LSK.categories, cats);
+    await sendToSheets('Categories','update',cats[idx]);
+    addLog('Edit kategori: '+name);
+  }else{
+    const rec = {id:uid(), ...data};
+    cats.push(rec);
+    setData(LSK.categories, cats);
+    await sendToSheets('Categories','create',rec);
+    addLog('Tambah kategori: '+name);
+  }
+  closeModal(); toast('Kategori disimpan','success'); renderKategori(); updateConnStatus();
+}
+async function hapusKategori(id){
+  if(!confirm('Hapus kategori ini?')) return;
+  let cats = getData(LSK.categories);
+  cats = cats.filter(c=>c.id!==id);
+  setData(LSK.categories, cats);
+  await sendToSheets('Categories','delete',{id});
+  addLog('Hapus kategori id:'+id);
+  renderKategori(); updateConnStatus();
+}
+
+/* =========================================================================================
+   11. HALAMAN: KEGIATAN (CRUD, tambah & kurangi)
+   ========================================================================================= */
+function renderKegiatan(){
+  const acts = getData(LSK.activities);
+  const cats = getData(LSK.categories);
+  const catName = id => (cats.find(c=>c.id===id)||{}).name || '-';
+  qs('#pageContent').innerHTML = `
+    <div class="card">
+      <div class="section-title"><h3>Kelola Kegiatan</h3><button class="btn btn-primary btn-sm" onclick="formKegiatan()">+ Tambah Kegiatan</button></div>
+      ${acts.map(a=>`
+        <div class="item-row">
+          <div class="info"><b>${escapeHtml(a.name)}</b><span>${catName(a.categoryId)} · ${fmtDateID(a.date)} · ${a.timeStart}-${a.timeEnd} · ${escapeHtml(a.location||'')} ${a.active?'':'· (nonaktif)'}</span></div>
+          <div class="item-actions">
+            <button class="btn btn-outline btn-sm" onclick="lihatQRKegiatan('${a.id}')">Link/QR</button>
+            <button class="btn btn-outline btn-sm" onclick="formKegiatan('${a.id}')">Edit</button>
+            <button class="btn btn-danger btn-sm" onclick="hapusKegiatan('${a.id}')">Hapus</button>
+          </div>
+        </div>`).join('') || '<p class="small-muted">Belum ada kegiatan.</p>'}
+    </div>`;
+}
+function formKegiatan(id){
+  const acts = getData(LSK.activities);
+  const cats = getData(LSK.categories);
+  const item = acts.find(a=>a.id===id) || {name:'',categoryId:cats[0]?cats[0].id:'',date:new Date().toISOString().slice(0,10),timeStart:'08:00',timeEnd:'Selesai',location:'',active:true};
+  openModal(`
+    <h3>${id?'Edit':'Tambah'} Kegiatan</h3>
+    <div class="form-group"><label>Nama Kegiatan</label><input class="form-control" id="fgName" value="${escapeHtml(item.name)}"></div>
+    <div class="form-group"><label>Kategori Pengajian</label>
+      <select class="form-control" id="fgCat">${cats.map(c=>`<option value="${c.id}" ${c.id===item.categoryId?'selected':''}>${escapeHtml(c.name)}</option>`).join('')}</select>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Tanggal</label><input type="date" class="form-control" id="fgDate" value="${item.date}"></div>
+      <div class="form-group"><label>Jam Mulai</label><input type="time" class="form-control" id="fgStart" value="${item.timeStart}"></div>
+      <div class="form-group"><label>Jam Selesai</label><input class="form-control" id="fgEnd" value="${item.timeEnd}"></div>
+    </div>
+    <div class="form-group"><label>Lokasi</label><input class="form-control" id="fgLoc" value="${escapeHtml(item.location||'')}"></div>
+    <div class="form-group"><label><input type="checkbox" id="fgActive" ${item.active!==false?'checked':''}> Aktif (bisa diabsen)</label></div>
+    <button class="btn btn-primary btn-block" onclick="simpanKegiatan('${id||''}')">Simpan</button>
+  `);
+}
+async function simpanKegiatan(id){
+  const acts = getData(LSK.activities);
+  const name = qs('#fgName').value.trim();
+  if(!name){ toast('Nama kegiatan wajib diisi','error'); return; }
+  const data = { name, categoryId:qs('#fgCat').value, date:qs('#fgDate').value, timeStart:qs('#fgStart').value, timeEnd:qs('#fgEnd').value, location:qs('#fgLoc').value.trim(), active:qs('#fgActive').checked };
+  if(id){
+    const idx = acts.findIndex(a=>a.id===id);
+    acts[idx] = {...acts[idx], ...data};
+    setData(LSK.activities, acts);
+    await sendToSheets('Activities','update',acts[idx]);
+    addLog('Edit kegiatan: '+name);
+  }else{
+    const rec = {id:uid(), ...data};
+    acts.push(rec);
+    setData(LSK.activities, acts);
+    await sendToSheets('Activities','create',rec);
+    addLog('Tambah kegiatan: '+name);
+  }
+  closeModal(); toast('Kegiatan disimpan','success'); renderKegiatan(); updateConnStatus();
+}
+async function hapusKegiatan(id){
+  if(!confirm('Hapus kegiatan ini?')) return;
+  let acts = getData(LSK.activities);
+  acts = acts.filter(a=>a.id!==id);
+  setData(LSK.activities, acts);
+  await sendToSheets('Activities','delete',{id});
+  addLog('Hapus kegiatan id:'+id);
+  renderKegiatan(); updateConnStatus();
+}
+function lihatQRKegiatan(id){
+  const link = location.origin + location.pathname + '?absen=' + id;
+  openModal(`
+    <h3>Link & QR Absensi Kegiatan</h3>
+    <p class="small-muted">Bagikan link atau QR ini ke jamaah. Peserta mengisi absensinya sendiri.</p>
+    <div class="qr-frame"><div id="qrTarget"></div></div>
+    <div class="form-group" style="margin-top:12px"><input class="form-control" id="linkTxt" value="${link}" readonly></div>
+    <div class="form-row">
+      <button class="btn btn-outline btn-block" onclick="navigator.clipboard.writeText('${link}');toast('Link disalin','success')">Salin Link</button>
+      <a class="btn btn-primary btn-block" target="_blank" href="https://wa.me/?text=${encodeURIComponent('Assalamualaikum, silakan isi daftar hadir pengajian melalui link berikut: '+link)}">Kirim via WhatsApp</a>
+    </div>
+  `);
+  setTimeout(()=>{ new QRCode(qs('#qrTarget'), {text: link, width:200, height:200}); }, 50);
+}
+
+/* =========================================================================================
+   12. HALAMAN: PESERTA
+   ========================================================================================= */
+function renderPeserta(){
+  const list = getData(LSK.participants);
+  qs('#pageContent').innerHTML = `
+    <div class="card">
+      <div class="section-title"><h3>Data Peserta (${list.length})</h3><button class="btn btn-primary btn-sm" onclick="formPeserta()">+ Tambah Peserta</button></div>
+      <div class="table-wrap"><table class="data-table">
+        <thead><tr><th>No</th><th>Nama</th><th>JK</th><th>Dapukan</th><th>No. WhatsApp</th><th>Aksi</th></tr></thead>
+        <tbody>${list.map((p,i)=>`
+          <tr><td>${i+1}</td><td>${escapeHtml(p.name)}</td><td>${p.gender}</td><td>${escapeHtml(p.dapukan)}</td><td>${escapeHtml(p.phone||'-')}</td>
+          <td class="item-actions">
+            <button class="btn btn-outline btn-sm" onclick="showQRPeserta('${p.id}')">QR</button>
+            <button class="btn btn-outline btn-sm" onclick="formPeserta('${p.id}')">Edit</button>
+            <button class="btn btn-danger btn-sm" onclick="hapusPeserta('${p.id}')">Hapus</button>
+          </td></tr>`).join('') || '<tr><td colspan="6" class="small-muted">Belum ada peserta.</td></tr>'}
+        </tbody></table></div>
+    </div>`;
+}
+const DAPUKAN_LIST = ['Bapak-Bapak','Ibu-Ibu','Muda-Mudi','Remaja','Pra Remaja','Caberawit'];
+function formPeserta(id){
+  const list = getData(LSK.participants);
+  const item = list.find(p=>p.id===id) || {name:'',gender:'Pria',dapukan:DAPUKAN_LIST[0],phone:''};
+  openModal(`
+    <h3>${id?'Edit':'Tambah'} Peserta</h3>
+    <div class="form-group"><label>Nama Lengkap</label><input class="form-control" id="fpName" value="${escapeHtml(item.name)}"></div>
+    <div class="form-group"><label>Jenis Kelamin</label>
+      <div class="radio-group">
+        <label><input type="radio" name="fpGender" value="Pria" ${item.gender==='Pria'?'checked':''}> Pria</label>
+        <label><input type="radio" name="fpGender" value="Wanita" ${item.gender==='Wanita'?'checked':''}> Wanita</label>
+      </div>
+    </div>
+    <div class="form-group"><label>Dapukan</label>
+      <select class="form-control" id="fpDapukan">${DAPUKAN_LIST.map(d=>`<option ${d===item.dapukan?'selected':''}>${d}</option>`).join('')}</select>
+    </div>
+    <div class="form-group"><label>No. WhatsApp (contoh: 6281234567890)</label><input class="form-control" id="fpPhone" value="${escapeHtml(item.phone||'')}"></div>
+    <button class="btn btn-primary btn-block" onclick="simpanPeserta('${id||''}')">Simpan</button>
+  `);
+}
+async function simpanPeserta(id){
+  const list = getData(LSK.participants);
+  const name = qs('#fpName').value.trim();
+  if(!name){ toast('Nama wajib diisi','error'); return; }
+  const gender = qs('input[name=fpGender]:checked')?.value || 'Pria';
+  const data = { name, gender, dapukan:qs('#fpDapukan').value, phone:qs('#fpPhone').value.trim() };
+  if(id){
+    const idx = list.findIndex(p=>p.id===id);
+    list[idx] = {...list[idx], ...data};
+    setData(LSK.participants, list);
+    await sendToSheets('Participants','update',list[idx]);
+    addLog('Edit peserta: '+name);
+  }else{
+    const rec = {id:uid(), qrId:uid(), ...data};
+    list.push(rec);
+    setData(LSK.participants, list);
+    await sendToSheets('Participants','create',rec);
+    addLog('Tambah peserta: '+name);
+  }
+  closeModal(); toast('Peserta disimpan','success'); renderPeserta(); updateConnStatus();
+}
+async function hapusPeserta(id){
+  if(!confirm('Hapus peserta ini?')) return;
+  let list = getData(LSK.participants);
+  list = list.filter(p=>p.id!==id);
+  setData(LSK.participants, list);
+  await sendToSheets('Participants','delete',{id});
+  addLog('Hapus peserta id:'+id);
+  renderPeserta(); updateConnStatus();
+}
+function showQRPeserta(id){
+  const p = getData(LSK.participants).find(x=>x.id===id);
+  if(!p) return;
+  const link = location.origin + location.pathname + '?peserta=' + p.id;
+  openModal(`
+    <h3>QR Code Peserta</h3>
+    <div class="center"><b>${escapeHtml(p.name)}</b><br><span class="small-muted">${p.dapukan} · ID: ${p.id.slice(-8).toUpperCase()}</span></div>
+    <div class="qr-frame" style="margin-top:12px"><div id="qrTargetP"></div></div>
+    <p class="small-muted center">Scan QR ini saat kegiatan berlangsung untuk membuka form absensi otomatis terisi nama peserta.</p>
+    <a class="btn btn-primary btn-block" target="_blank" href="https://wa.me/${p.phone?p.phone.replace(/\\D/g,''):''}?text=${encodeURIComponent('Assalamualaikum '+p.name+', berikut QR/link absensi pribadi Anda: '+link)}">Kirim via WhatsApp</a>
+  `);
+  setTimeout(()=>{ new QRCode(qs('#qrTargetP'), {text: link, width:200, height:200}); }, 50);
+}
+
+/* =========================================================================================
+   13. HALAMAN: ABSENSI (rekap admin + input manual + scan QR)
+   ========================================================================================= */
+function renderAbsensi(){
+  const attendance = getData(LSK.attendance).slice().reverse();
+  const acts = getData(LSK.activities).filter(a=>a.active!==false);
+  qs('#pageContent').innerHTML = `
+    <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(220px,1fr));margin-bottom:16px">
+      <div class="card center">
+        <div style="font-size:26px">📝</div><b>Isi Absensi Manual</b>
+        <p class="small-muted">Input data kehadiran secara langsung</p>
+        <button class="btn btn-primary btn-block" onclick="bukaFormAbsensiManual()">Buka Form</button>
+      </div>
+      <div class="card center">
+        <div style="font-size:26px">📷</div><b>Scan QR Peserta</b>
+        <p class="small-muted">Gunakan kamera untuk memindai QR peserta</p>
+        <button class="btn btn-primary btn-block" onclick="bukaScanQR()">Scan Sekarang</button>
+      </div>
+      <div class="card center">
+        <div style="font-size:26px">🔗</div><b>Bagikan Link Kegiatan</b>
+        <p class="small-muted">Kirim link/QR agar peserta absen sendiri</p>
+        <select class="form-control" id="pilihKegiatanShare" style="margin-bottom:8px">${acts.map(a=>`<option value="${a.id}">${escapeHtml(a.name)} (${fmtDateID(a.date)})</option>`).join('')}</select>
+        <button class="btn btn-outline btn-block" onclick="lihatQRKegiatan(qs('#pilihKegiatanShare').value)">Tampilkan QR</button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="section-title"><h3>Riwayat Absensi (${attendance.length})</h3></div>
+      <div class="table-wrap"><table class="data-table">
+        <thead><tr><th>No</th><th>Nama</th><th>JK</th><th>Dapukan</th><th>Kegiatan</th><th>Waktu</th><th>Kehadiran</th><th>Infak</th><th>Ket.</th><th>Aksi</th></tr></thead>
+        <tbody>${attendance.map((a,i)=>`
+          <tr><td>${i+1}</td><td>${escapeHtml(a.participantName)}</td><td>${a.gender||''}</td><td>${escapeHtml(a.dapukan||'')}</td>
+          <td>${escapeHtml(a.activityName)}</td><td>${fmtTime(a.createdAt)} ${a.timezone||''}</td>
+          <td><span class="badge badge-${statusClass(a.status)}">${a.status}</span></td><td>${rupiah(a.infak)}</td>
+          <td>${escapeHtml(a.note||'')}</td>
+          <td><button class="btn btn-danger btn-sm" onclick="hapusAbsensi('${a.id}')">Hapus</button></td></tr>`).join('') || '<tr><td colspan="10" class="small-muted">Belum ada data.</td></tr>'}
+        </tbody></table></div>
+    </div>`;
+}
+async function hapusAbsensi(id){
+  if(!confirm('Hapus data absensi ini?')) return;
+  let att = getData(LSK.attendance);
+  att = att.filter(a=>a.id!==id);
+  setData(LSK.attendance, att);
+  await sendToSheets('Attendance','delete',{id});
+  addLog('Hapus absensi id:'+id);
+  renderAbsensi(); updateConnStatus();
+}
+function bukaFormAbsensiManual(){
+  const acts = getData(LSK.activities).filter(a=>a.active!==false);
+  const participants = getData(LSK.participants);
+  openModal(buildFormAbsensiHTML(acts, participants));
+  initSignaturePad();
+}
+function bukaScanQR(){
+  openModal(`
+    <h3>Scan QR Peserta</h3>
+    <div id="qrVideoWrap"><video id="qrVideo" autoplay playsinline muted></video><div class="scan-frame"></div></div>
+    <canvas id="qrCanvasHidden"></canvas>
+    <p class="small-muted center" style="margin-top:8px">Arahkan kamera ke QR Code peserta</p>
+  `);
+  startScanner();
+}
+let scanStream = null, scanInterval = null;
+async function startScanner(){
+  try{
+    scanStream = await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}});
+    const video = qs('#qrVideo');
+    video.srcObject = scanStream;
+    const canvas = qs('#qrCanvasHidden');
+    const ctx = canvas.getContext('2d');
+    scanInterval = setInterval(()=>{
+      if(video.readyState !== video.HAVE_ENOUGH_DATA) return;
+      canvas.width = video.videoWidth; canvas.height = video.videoHeight;
+      ctx.drawImage(video,0,0,canvas.width,canvas.height);
+      const img = ctx.getImageData(0,0,canvas.width,canvas.height);
+      const code = jsQR(img.data, img.width, img.height);
+      if(code){
+        stopScanner();
+        handleScannedQR(code.data);
+      }
+    }, 350);
+  }catch(e){
+    qs('#modalBox').insertAdjacentHTML('beforeend', `<p style="color:#c23b34">Kamera tidak dapat diakses: ${e}</p>`);
+  }
+}
+function stopScanner(){
+  if(scanInterval) clearInterval(scanInterval);
+  if(scanStream) scanStream.getTracks().forEach(t=>t.stop());
+}
+function handleScannedQR(text){
+  try{
+    const url = new URL(text);
+    const pid = url.searchParams.get('peserta');
+    const aid = url.searchParams.get('absen');
+    const acts = getData(LSK.activities).filter(a=>a.active!==false);
+    const participants = getData(LSK.participants);
+    openModal(buildFormAbsensiHTML(acts, participants, pid, aid));
+    initSignaturePad();
+  }catch(e){
+    toast('QR tidak dikenali','error');
+  }
+}
+function buildFormAbsensiHTML(acts, participants, prefillParticipant, prefillActivity){
+  return `
+    <h3>Form Absensi</h3>
+    <div class="form-group"><label>Kegiatan</label>
+      <select class="form-control" id="faKegiatan">${acts.map(a=>`<option value="${a.id}" ${a.id===prefillActivity?'selected':''}>${escapeHtml(a.name)} (${fmtDateID(a.date)})</option>`).join('')}</select>
+    </div>
+    <div class="form-group"><label>Nama Lengkap</label>
+      <input list="dlPeserta" class="form-control" id="faNama" value="${prefillParticipant? escapeHtml((participants.find(p=>p.id===prefillParticipant)||{}).name||'') : ''}">
+      <datalist id="dlPeserta">${participants.map(p=>`<option value="${escapeHtml(p.name)}">`).join('')}</datalist>
+    </div>
+    <div class="form-group"><label>Jenis Kelamin</label>
+      <div class="radio-group">
+        <label><input type="radio" name="faGender" value="Pria" checked> Pria</label>
+        <label><input type="radio" name="faGender" value="Wanita"> Wanita</label>
+      </div>
+    </div>
+    <div class="form-group"><label>Dapukan</label>
+      <select class="form-control" id="faDapukan">${DAPUKAN_LIST.map(d=>`<option>${d}</option>`).join('')}</select>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Zona Waktu</label>
+        <div class="radio-group">
+          <label><input type="radio" name="faTZ" value="WIB" checked> WIB</label>
+          <label><input type="radio" name="faTZ" value="WITA"> WITA</label>
+          <label><input type="radio" name="faTZ" value="WIT"> WIT</label>
+        </div>
+      </div>
+    </div>
+    <div class="form-group"><label>Kehadiran</label>
+      <select class="form-control" id="faStatus">
+        <option value="Hadir">Hadir</option><option value="Izin">Izin/Berhalangan</option>
+        <option value="Sakit">Sakit</option><option value="Alfa">Alfa</option>
+      </select>
+    </div>
+    <div class="form-group"><label>Infak (Rp)</label><input type="number" class="form-control" id="faInfak" value="0" min="0"></div>
+    <div class="form-group"><label>Keterangan</label><textarea class="form-control" id="faNote" rows="2"></textarea></div>
+    <div class="form-group"><label>Tanda Tangan</label>
+      <div class="sig-wrap"><canvas id="sigPad"></canvas></div>
+      <button type="button" class="btn btn-outline btn-sm" style="margin-top:6px" onclick="clearSignature()">Bersihkan</button>
+    </div>
+    <button class="btn btn-primary btn-block" style="margin-top:10px" onclick="simpanAbsensiManual()">Simpan & Kirim</button>
+  `;
+}
+async function simpanAbsensiManual(){
+  const nama = qs('#faNama').value.trim();
+  if(!nama){ toast('Nama wajib diisi','error'); return; }
+  const acts = getData(LSK.activities);
+  const activityId = qs('#faKegiatan').value;
+  const activity = acts.find(a=>a.id===activityId) || {};
+  const rec = {
+    id: uid(),
+    participantId: '', participantName: nama,
+    gender: qs('input[name=faGender]:checked')?.value || 'Pria',
+    dapukan: qs('#faDapukan').value,
+    activityId, activityName: activity.name || '',
+    timezone: qs('input[name=faTZ]:checked')?.value || 'WIB',
+    status: qs('#faStatus').value,
+    infak: Number(qs('#faInfak').value)||0,
+    note: qs('#faNote').value.trim(),
+    signature: getSignatureData(),
+    createdAt: nowISO()
+  };
+  const att = getData(LSK.attendance);
+  att.push(rec);
+  setData(LSK.attendance, att);
+  await sendToSheets('Attendance','create',rec);
+  addLog('Absensi baru: '+nama);
+  stopScanner();
+  closeModal();
+  toast('Absensi berhasil disimpan','success');
+  renderPage(currentPage);
+  updateConnStatus();
+}
+
+/* ----- Signature Pad (canvas sederhana, tanpa dependensi eksternal) ----- */
+let sigCtx=null, sigDrawing=false, sigHasContent=false;
+function initSignaturePad(){
+  const canvas = qs('#sigPad');
+  if(!canvas) return;
+  const wrap = canvas.parentElement;
+  const ratio = window.devicePixelRatio || 1;
+  canvas.width = wrap.clientWidth * ratio;
+  canvas.height = 180 * ratio;
+  canvas.style.width = wrap.clientWidth + 'px';
+  canvas.style.height = '180px';
+  sigCtx = canvas.getContext('2d');
+  sigCtx.scale(ratio, ratio);
+  sigCtx.lineWidth = 2.2; sigCtx.lineCap = 'round'; sigCtx.strokeStyle = '#1f2937';
+  sigHasContent = false;
+
+  function pos(e){
+    const r = canvas.getBoundingClientRect();
+    const cx = (e.touches? e.touches[0].clientX : e.clientX) - r.left;
+    const cy = (e.touches? e.touches[0].clientY : e.clientY) - r.top;
+    return {x:cx, y:cy};
+  }
+  function start(e){ sigDrawing=true; const p=pos(e); sigCtx.beginPath(); sigCtx.moveTo(p.x,p.y); e.preventDefault(); }
+  function move(e){ if(!sigDrawing) return; const p=pos(e); sigCtx.lineTo(p.x,p.y); sigCtx.stroke(); sigHasContent=true; e.preventDefault(); }
+  function end(){ sigDrawing=false; }
+
+  canvas.addEventListener('mousedown', start);
+  canvas.addEventListener('mousemove', move);
+  window.addEventListener('mouseup', end);
+  canvas.addEventListener('touchstart', start, {passive:false});
+  canvas.addEventListener('touchmove', move, {passive:false});
+  canvas.addEventListener('touchend', end);
+}
+function clearSignature(){
+  const canvas = qs('#sigPad');
+  if(!canvas || !sigCtx) return;
+  sigCtx.clearRect(0,0,canvas.width,canvas.height);
+  sigHasContent = false;
+}
+function getSignatureData(){
+  const canvas = qs('#sigPad');
+  if(!canvas || !sigHasContent) return '';
+  return canvas.toDataURL('image/png');
+}
+
+/* =========================================================================================
+   14. HALAMAN: INFAK
+   ========================================================================================= */
+function renderInfak(){
+  const att = getData(LSK.attendance);
+  const byActivity = {};
+  att.forEach(a=>{
+    const key = a.activityName || '-';
+    byActivity[key] = (byActivity[key]||0) + (Number(a.infak)||0);
+  });
+  const total = att.reduce((s,a)=>s+(Number(a.infak)||0),0);
+  qs('#pageContent').innerHTML = `
+    <div class="stat-grid">
+      <div class="stat-card"><div class="icon">💰</div><div class="num" style="font-size:18px">${rupiah(total)}</div><div class="lbl">Total Infak Keseluruhan</div></div>
+    </div>
+    <div class="card">
+      <div class="section-title"><h3>Rekap Infak per Kegiatan</h3></div>
+      <div class="table-wrap"><table class="data-table"><thead><tr><th>Kegiatan</th><th>Total Infak</th></tr></thead>
+      <tbody>${Object.entries(byActivity).map(([k,v])=>`<tr><td>${escapeHtml(k)}</td><td>${rupiah(v)}</td></tr>`).join('') || '<tr><td colspan="2" class="small-muted">Belum ada data.</td></tr>'}</tbody></table></div>
+    </div>
+    <div class="card" style="margin-top:16px">
+      <div class="section-title"><h3>Detail Infak per Peserta</h3></div>
+      <div class="table-wrap"><table class="data-table"><thead><tr><th>Nama</th><th>Kegiatan</th><th>Tanggal</th><th>Infak</th></tr></thead>
+      <tbody>${att.filter(a=>Number(a.infak)>0).slice().reverse().map(a=>`<tr><td>${escapeHtml(a.participantName)}</td><td>${escapeHtml(a.activityName)}</td><td>${(a.createdAt||'').slice(0,10)}</td><td>${rupiah(a.infak)}</td></tr>`).join('') || '<tr><td colspan="4" class="small-muted">Belum ada data.</td></tr>'}</tbody></table></div>
+    </div>`;
+}
+
+/* =========================================================================================
+   15. HALAMAN: LAPORAN (rekap & filter)
+   ========================================================================================= */
+function renderLaporan(){
+  const acts = getData(LSK.activities);
+  qs('#pageContent').innerHTML = `
+    <div class="card">
+      <div class="section-title"><h3>Filter Laporan</h3></div>
+      <div class="form-row">
+        <div class="form-group"><label>Kegiatan</label><select class="form-control" id="lapKegiatan"><option value="">Semua Kegiatan</option>${acts.map(a=>`<option value="${a.id}">${escapeHtml(a.name)} (${fmtDateID(a.date)})</option>`).join('')}</select></div>
+        <div class="form-group"><label>Dari Tanggal</label><input type="date" class="form-control" id="lapFrom"></div>
+        <div class="form-group"><label>Sampai Tanggal</label><input type="date" class="form-control" id="lapTo"></div>
+      </div>
+      <button class="btn btn-primary" onclick="tampilkanLaporan()">Tampilkan</button>
+    </div>
+    <div class="card" style="margin-top:16px" id="lapResult"></div>`;
+}
+function tampilkanLaporan(){
+  const kegId = qs('#lapKegiatan').value;
+  const from = qs('#lapFrom').value;
+  const to = qs('#lapTo').value;
+  let att = getData(LSK.attendance);
+  if(kegId) att = att.filter(a=>a.activityId===kegId);
+  if(from) att = att.filter(a=> (a.createdAt||'').slice(0,10) >= from);
+  if(to) att = att.filter(a=> (a.createdAt||'').slice(0,10) <= to);
+  const totalInfak = att.reduce((s,a)=>s+(Number(a.infak)||0),0);
+  qs('#lapResult').innerHTML = `
+    <div class="section-title"><h3>Hasil (${att.length} data · Total Infak ${rupiah(totalInfak)})</h3>
+      <button class="btn btn-outline btn-sm" onclick="lastReportData=${JSON.stringify(att).replace(/"/g,'&quot;')};exportPDFLaporan(lastReportData)">Export PDF</button>
+    </div>
+    <div class="table-wrap"><table class="data-table">
+      <thead><tr><th>No</th><th>Nama</th><th>JK</th><th>Dapukan</th><th>Kegiatan</th><th>Waktu</th><th>Kehadiran</th><th>Infak</th><th>Ket.</th></tr></thead>
+      <tbody>${att.map((a,i)=>`<tr><td>${i+1}</td><td>${escapeHtml(a.participantName)}</td><td>${a.gender||''}</td><td>${escapeHtml(a.dapukan||'')}</td><td>${escapeHtml(a.activityName)}</td><td>${fmtTime(a.createdAt)} ${a.timezone||''}</td><td><span class="badge badge-${statusClass(a.status)}">${a.status}</span></td><td>${rupiah(a.infak)}</td><td>${escapeHtml(a.note||'')}</td></tr>`).join('') || '<tr><td colspan="9" class="small-muted">Tidak ada data.</td></tr>'}</tbody>
+    </table></div>`;
+}
+let lastReportData = [];
+
+/* =========================================================================================
+   16. HALAMAN: EXPORT DATA (PDF resmi / Word / Excel)
+   ========================================================================================= */
+function renderExport(){
+  const acts = getData(LSK.activities);
+  qs('#pageContent').innerHTML = `
+    <div class="card">
+      <div class="section-title"><h3>Export Data Absensi</h3></div>
+      <div class="form-group"><label>Pilih Kegiatan (untuk PDF Daftar Hadir resmi)</label>
+        <select class="form-control" id="expKegiatan">${acts.map(a=>`<option value="${a.id}">${escapeHtml(a.name)} (${fmtDateID(a.date)})</option>`).join('')}</select>
+      </div>
+      <div class="form-row" style="margin-top:10px">
+        <button class="btn btn-danger" onclick="exportPDFDaftarHadir()">📄 Export PDF Daftar Hadir</button>
+        <button class="btn" style="background:#2c6fe0;color:#fff" onclick="exportWord()">📝 Export Word</button>
+        <button class="btn" style="background:#1a8a3f;color:#fff" onclick="exportExcel()">📊 Export Excel</button>
+        <button class="btn btn-outline" onclick="exportCSV()">Export CSV</button>
+      </div>
+      <p class="small-muted" style="margin-top:14px">PDF Daftar Hadir memuat logo organisasi, tabel kehadiran lengkap dengan tanda tangan peserta, serta kolom "Mengetahui" untuk tanda tangan Penanggung Jawab + area cetak stempel basah.</p>
+    </div>`;
+}
+function currentExportRows(activityIdFilter){
+  let att = getData(LSK.attendance);
+  if(activityIdFilter) att = att.filter(a=>a.activityId===activityIdFilter);
+  return att;
+}
+
+/* ---- Export Excel (SheetJS) ---- */
+function exportExcel(){
+  const att = getData(LSK.attendance);
+  const rows = att.map((a,i)=>({
+    No:i+1, Nama:a.participantName, 'Jenis Kelamin':a.gender, Dapukan:a.dapukan, Kegiatan:a.activityName,
+    Tanggal: (a.createdAt||'').slice(0,10), Waktu: fmtTime(a.createdAt), 'Zona Waktu':a.timezone,
+    Kehadiran:a.status, 'Infak (Rp)':a.infak, Keterangan:a.note
+  }));
+  const ws = XLSX.utils.json_to_sheet(rows);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Absensi');
+  XLSX.writeFile(wb, 'Daftar_Hadir_Pengajian.xlsx');
+  addLog('Export Excel');
+}
+function exportCSV(){
+  const att = getData(LSK.attendance);
+  const header = ['No','Nama','Jenis Kelamin','Dapukan','Kegiatan','Tanggal','Waktu','Zona Waktu','Kehadiran','Infak','Keterangan'];
+  const rows = att.map((a,i)=>[i+1,a.participantName,a.gender,a.dapukan,a.activityName,(a.createdAt||'').slice(0,10),fmtTime(a.createdAt),a.timezone,a.status,a.infak,a.note]);
+  let csv = header.join(',') + '\\n' + rows.map(r=>r.map(v=>`"${String(v??'').replace(/"/g,'""')}"`).join(',')).join('\\n');
+  downloadBlob(csv, 'Daftar_Hadir_Pengajian.csv', 'text/csv;charset=utf-8;');
+  addLog('Export CSV');
+}
+/* ---- Export Word (trik HTML -> .doc, terbuka native di Microsoft Word) ---- */
+function exportWord(){
+  const s = getSettings();
+  const att = getData(LSK.attendance);
+  const rowsHtml = att.map((a,i)=>`<tr><td>${i+1}</td><td>${escapeHtml(a.participantName)}</td><td>${a.gender}</td><td>${escapeHtml(a.dapukan)}</td><td>${escapeHtml(a.activityName)}</td><td>${(a.createdAt||'').slice(0,10)} ${fmtTime(a.createdAt)} ${a.timezone||''}</td><td>${a.status}</td><td>${rupiah(a.infak)}</td><td>${escapeHtml(a.note||'')}</td></tr>`).join('');
+  const html = `
+    <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
+    <head><meta charset="utf-8"><title>Laporan Absensi</title></head>
+    <body>
+      <h2 style="color:#0d5c3f">${escapeHtml(s.orgName)} — ${escapeHtml(s.groupName)}</h2>
+      <h3>Laporan Daftar Hadir Pengajian</h3>
+      <table border="1" cellspacing="0" cellpadding="4" style="border-collapse:collapse;font-size:12px;width:100%">
+        <tr style="background:#e8f5ee"><th>No</th><th>Nama</th><th>JK</th><th>Dapukan</th><th>Kegiatan</th><th>Waktu</th><th>Kehadiran</th><th>Infak</th><th>Keterangan</th></tr>
+        ${rowsHtml}
+      </table>
+      <br><p>Mengetahui,<br>${escapeHtml(s.picTitle||'Penanggung Jawab')}</p><br><br><br>
+      <p>( ${escapeHtml(s.picName||'____________________')} )</p>
+    </body></html>`;
+  downloadBlob(html, 'Laporan_Absensi_Pengajian.doc', 'application/msword');
+  addLog('Export Word');
+}
+function downloadBlob(content, filename, mime){
+  const blob = new Blob([content], {type:mime});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename; a.click();
+  URL.revokeObjectURL(url);
+}
+
+/* ---- Export PDF Daftar Hadir resmi (logo + tanda tangan + area stempel) ---- */
+function exportPDFDaftarHadir(){
+  const activityId = qs('#expKegiatan').value;
+  const rows = currentExportRows(activityId);
+  renderPDFAndSave(rows, activityId);
+}
+function exportPDFLaporan(rows){
+  renderPDFAndSave(rows, null);
+}
+async function renderPDFAndSave(rows, activityId){
+  const s = getSettings();
+  const acts = getData(LSK.activities);
+  const activity = acts.find(a=>a.id===activityId);
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({unit:'pt', format:'a4'});
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const marginX = 40;
+  let y = 50;
+
+  // Logo
+  try{
+    const logo = s.logo || DEFAULT_LOGO_SVG;
+    if(logo.startsWith('data:image/png') || logo.startsWith('data:image/jpeg')){
+      doc.addImage(logo, undefined, marginX, y-20, 46, 46);
+    }
+  }catch(e){}
+
+  doc.setFontSize(14); doc.setTextColor(13,92,63);
+  doc.text(s.orgName || 'Nama Organisasi', marginX+56, y-2);
+  doc.setFontSize(10); doc.setTextColor(60,60,60);
+  doc.text(s.groupName || '', marginX+56, y+13);
+  doc.text(s.address || '', marginX+56, y+26);
+  doc.setDrawColor(13,92,63); doc.setLineWidth(1.4);
+  doc.line(marginX, y+40, pageWidth-marginX, y+40);
+  y += 60;
+
+  doc.setFontSize(12); doc.setTextColor(20,20,20);
+  doc.text('DAFTAR HADIR PENGAJIAN', marginX, y);
+  y += 16;
+  doc.setFontSize(10);
+  doc.text('Kegiatan  : ' + (activity? activity.name : 'Semua Kegiatan'), marginX, y); y+=14;
+  doc.text('Tanggal   : ' + (activity? fmtDateID(activity.date) : fmtDateID(new Date())), marginX, y); y+=14;
+  doc.text('Lokasi    : ' + (activity? (activity.location||'-') : '-'), marginX, y); y+=10;
+
+  const body = rows.map((r,i)=>[i+1, r.participantName, r.gender, r.dapukan, `${(r.createdAt||'').slice(0,10)} ${fmtTime(r.createdAt)} ${r.timezone||''}`, r.status, rupiah(r.infak), r.note||'', '']);
+
+  doc.autoTable({
+    startY: y+10,
+    head: [['No','Nama','JK','Dapukan','Waktu Datang','Kehadiran','Infak','Ket.','Tanda Tangan']],
+    body: body,
+    styles:{fontSize:8, cellPadding:4, valign:'middle'},
+    headStyles:{fillColor:[13,92,63], textColor:255},
+    columnStyles:{ 0:{cellWidth:22}, 8:{cellWidth:70} },
+    didDrawCell: function(data){
+      if(data.section==='body' && data.column.index===8){
+        const rowData = rows[data.row.index];
+        if(rowData && rowData.signature){
+          try{ doc.addImage(rowData.signature, 'PNG', data.cell.x+5, data.cell.y+3, 55, data.cell.height-8); }catch(e){}
+        }
+      }
+    }
+  });
+
+  let finalY = doc.lastAutoTable.finalY + 40;
+  if(finalY > 700){ doc.addPage(); finalY = 60; }
+
+  doc.setFontSize(10);
+  doc.text('Mengetahui,', pageWidth-220, finalY);
+  doc.text(s.picTitle || 'Penanggung Jawab', pageWidth-220, finalY+14);
+
+  // area stempel basah (lingkaran putus-putus)
+  doc.setDrawColor(150); doc.setLineDashPattern([3,2],0);
+  doc.circle(pageWidth-140, finalY+70, 40);
+  doc.setFontSize(7); doc.setTextColor(150);
+  doc.text('Tempat Stempel', pageWidth-160, finalY+70, {maxWidth:60});
+  doc.setLineDashPattern([],0);
+
+  doc.setDrawColor(30); doc.setTextColor(20,20,20); doc.setFontSize(10);
+  doc.line(pageWidth-220, finalY+110, pageWidth-70, finalY+110);
+  doc.text('( ' + (s.picName || '.........................') + ' )', pageWidth-220, finalY+124);
+
+  doc.save('Daftar_Hadir_' + (activity? activity.name.replace(/\\s+/g,'_') : 'Laporan') + '.pdf');
+  addLog('Export PDF Daftar Hadir');
+}
+
+/* =========================================================================================
+   17. HALAMAN: PENGATURAN
+   ========================================================================================= */
+function renderPengaturan(){
+  const s = getSettings();
+  qs('#pageContent').innerHTML = `
+    <div class="grid" style="grid-template-columns:1fr 1fr;gap:16px">
+      <div class="card">
+        <div class="section-title"><h3>Identitas & Branding</h3></div>
+        <div class="form-group"><label>Logo Organisasi</label>
+          <input type="file" accept="image/*" class="form-control" id="setLogoFile">
+          <div style="margin-top:8px"><img id="setLogoPreview" src="${s.logo||DEFAULT_LOGO_SVG}" style="width:60px;height:60px;border-radius:12px;object-fit:cover;border:1px solid #eee"></div>
+        </div>
+        <div class="form-group"><label>Nama Organisasi</label><input class="form-control" id="setOrgName" value="${escapeHtml(s.orgName)}"></div>
+        <div class="form-group"><label>Nama Kelompok/Majelis</label><input class="form-control" id="setGroupName" value="${escapeHtml(s.groupName)}"></div>
+        <div class="form-group"><label>Alamat</label><input class="form-control" id="setAddress" value="${escapeHtml(s.address||'')}"></div>
+        <div class="form-group"><label>Warna Tema</label><input type="color" class="form-control" id="setTheme" value="${s.themeColor||'#0d5c3f'}" style="height:42px"></div>
+        <div class="form-group"><label>Nama Penanggung Jawab (untuk PDF)</label><input class="form-control" id="setPicName" value="${escapeHtml(s.picName||'')}"></div>
+        <div class="form-group"><label>Jabatan Penanggung Jawab</label><input class="form-control" id="setPicTitle" value="${escapeHtml(s.picTitle||'Penanggung Jawab')}"></div>
+        <button class="btn btn-primary btn-block" onclick="simpanBranding()">Simpan Branding</button>
+      </div>
+
+      <div class="card">
+        <div class="section-title"><h3>Koneksi Google Spreadsheet</h3></div>
+        <p class="small-muted">Ikuti file <b>PANDUAN_SETTING.md</b> yang disertakan untuk membuat Web App URL dari Google Apps Script.</p>
+        <div class="form-group"><label>Web App URL (dari Deploy Apps Script)</label><input class="form-control" id="setSheetsUrl" placeholder="https://script.google.com/macros/s/xxx/exec" value="${escapeHtml(s.sheetsUrl||'')}"></div>
+        <div class="form-group"><label>API Key (harus sama dengan di Code.gs)</label><input class="form-control" id="setApiKey" value="${escapeHtml(s.apiKey||'')}"></div>
+        <div class="form-group"><label><input type="checkbox" id="setSyncEnabled" ${s.syncEnabled?'checked':''}> Aktifkan Sinkronisasi ke Google Sheets</label></div>
+        <div class="form-row">
+          <button class="btn btn-primary" onclick="simpanKoneksi()">Simpan Koneksi</button>
+          <button class="btn btn-outline" onclick="testKoneksi()">Tes Koneksi</button>
+          <button class="btn btn-outline" onclick="pullFromSheets()">Tarik Data dari Sheets</button>
+        </div>
+        <p class="small-muted" id="testResultTxt" style="margin-top:8px"></p>
+      </div>
+    </div>`;
+}
+function simpanBranding(){
+  const s = getSettings();
+  s.orgName = qs('#setOrgName').value.trim();
+  s.groupName = qs('#setGroupName').value.trim();
+  s.address = qs('#setAddress').value.trim();
+  s.themeColor = qs('#setTheme').value;
+  s.picName = qs('#setPicName').value.trim();
+  s.picTitle = qs('#setPicTitle').value.trim();
+  const file = qs('#setLogoFile').files[0];
+  if(file){
+    const reader = new FileReader();
+    reader.onload = function(ev){
+      s.logo = ev.target.result;
+      setSettings(s); applyBranding(); toast('Branding disimpan','success');
+    };
+    reader.readAsDataURL(file);
+  }else{
+    setSettings(s); applyBranding(); toast('Branding disimpan','success');
+  }
+  addLog('Update branding');
+}
+function simpanKoneksi(){
+  const s = getSettings();
+  s.sheetsUrl = qs('#setSheetsUrl').value.trim();
+  s.apiKey = qs('#setApiKey').value.trim();
+  s.syncEnabled = qs('#setSyncEnabled').checked;
+  setSettings(s);
+  toast('Pengaturan koneksi disimpan','success');
+  addLog('Update koneksi Google Sheets');
+  updateConnStatus();
+}
+async function testKoneksi(){
+  simpanKoneksi();
+  const s = getSettings();
+  qs('#testResultTxt').textContent = 'Menguji koneksi...';
+  try{
+    const url = s.sheetsUrl + '?action=read&sheet=Categories&apiKey=' + encodeURIComponent(s.apiKey);
+    const res = await fetch(url);
+    const json = await res.json();
+    if(json.success){ qs('#testResultTxt').innerHTML = '✅ Koneksi berhasil! ('+ (json.result?json.result.length:0) +' baris ditemukan)'; }
+    else{ qs('#testResultTxt').innerHTML = '❌ Gagal: ' + (json.message||'periksa API Key/URL'); }
+  }catch(e){
+    qs('#testResultTxt').innerHTML = '❌ Gagal terhubung: ' + e;
+  }
+}
+
+/* =========================================================================================
+   18. HALAMAN: USER (manajemen akun)
+   ========================================================================================= */
+function renderUser(){
+  const users = getData(LSK.users);
+  qs('#pageContent').innerHTML = `
+    <div class="card">
+      <div class="section-title"><h3>Manajemen User</h3><button class="btn btn-primary btn-sm" onclick="formUser()">+ Tambah User</button></div>
+      ${users.map(u=>`
+        <div class="item-row">
+          <div class="info"><b>${escapeHtml(u.name||u.username)}</b><span>@${escapeHtml(u.username)} · ${escapeHtml(u.role)}</span></div>
+          <div class="item-actions">
+            <button class="btn btn-outline btn-sm" onclick="formUser('${u.id}')">Edit</button>
+            <button class="btn btn-danger btn-sm" onclick="hapusUser('${u.id}')">Hapus</button>
+          </div>
+        </div>`).join('')}
+    </div>`;
+}
+function formUser(id){
+  const users = getData(LSK.users);
+  const item = users.find(u=>u.id===id) || {name:'',username:'',role:'Operator'};
+  openModal(`
+    <h3>${id?'Edit':'Tambah'} User</h3>
+    <div class="form-group"><label>Nama</label><input class="form-control" id="fuName" value="${escapeHtml(item.name||'')}"></div>
+    <div class="form-group"><label>Username</label><input class="form-control" id="fuUsername" value="${escapeHtml(item.username)}" ${id?'readonly':''}></div>
+    <div class="form-group"><label>Password ${id?'(kosongkan jika tidak diubah)':''}</label><input type="password" class="form-control" id="fuPassword"></div>
+    <div class="form-group"><label>Role</label>
+      <select class="form-control" id="fuRole">
+        <option ${item.role==='Admin'?'selected':''}>Admin</option>
+        <option ${item.role==='Penanggung Jawab'?'selected':''}>Penanggung Jawab</option>
+        <option ${item.role==='Operator'?'selected':''}>Operator</option>
+      </select>
+    </div>
+    <button class="btn btn-primary btn-block" onclick="simpanUser('${id||''}')">Simpan</button>
+  `);
+}
+async function simpanUser(id){
+  const users = getData(LSK.users);
+  const username = qs('#fuUsername').value.trim();
+  if(!username){ toast('Username wajib diisi','error'); return; }
+  const pass = qs('#fuPassword').value;
+  const data = { name:qs('#fuName').value.trim(), username, role:qs('#fuRole').value };
+  if(id){
+    const idx = users.findIndex(u=>u.id===id);
+    if(pass) data.passwordHash = await sha256(pass);
+    users[idx] = {...users[idx], ...data};
+  }else{
+    if(!pass){ toast('Password wajib diisi','error'); return; }
+    data.passwordHash = await sha256(pass);
+    users.push({id:uid(), ...data});
+  }
+  setData(LSK.users, users);
+  closeModal(); toast('User disimpan','success'); renderUser();
+  addLog('Simpan user: '+username);
+}
+function hapusUser(id){
+  if(!confirm('Hapus user ini?')) return;
+  let users = getData(LSK.users);
+  if(users.length<=1){ toast('Minimal harus ada 1 user','error'); return; }
+  users = users.filter(u=>u.id!==id);
+  setData(LSK.users, users);
+  renderUser();
+  addLog('Hapus user id:'+id);
+}
+
+/* =========================================================================================
+   19. BACKUP & RESTORE (JSON lokal)
+   ========================================================================================= */
+function renderBackup(){
+  qs('#pageContent').innerHTML = `
+    <div class="card">
+      <div class="section-title"><h3>Backup Data</h3></div>
+      <p class="small-muted">Simpan seluruh data lokal (peserta, absensi, kategori, kegiatan, pengaturan) ke file JSON sebagai cadangan.</p>
+      <button class="btn btn-primary" onclick="backupData()">💾 Backup Sekarang (Download JSON)</button>
+    </div>
+    <div class="card" style="margin-top:16px">
+      <div class="section-title"><h3>Restore Data</h3></div>
+      <p class="small-muted">Pulihkan data dari file backup JSON. Data saat ini akan ditimpa.</p>
+      <input type="file" accept=".json" class="form-control" id="restoreFile" style="margin-bottom:10px">
+      <button class="btn btn-danger" onclick="restoreData()">♻️ Restore dari File</button>
+    </div>`;
+}
+function backupData(){
+  const backup = {};
+  Object.values(LSK).forEach(k=> backup[k] = JSON.parse(localStorage.getItem(k)||'null'));
+  downloadBlob(JSON.stringify(backup, null, 2), 'backup_absensi_pengajian_'+new Date().toISOString().slice(0,10)+'.json', 'application/json');
+  addLog('Backup data');
+}
+function restoreData(){
+  const file = qs('#restoreFile').files[0];
+  if(!file){ toast('Pilih file backup terlebih dahulu','error'); return; }
+  const reader = new FileReader();
+  reader.onload = function(ev){
+    try{
+      const data = JSON.parse(ev.target.result);
+      Object.entries(data).forEach(([k,v])=>{ if(v!==undefined) localStorage.setItem(k, JSON.stringify(v)); });
+      toast('Data berhasil dipulihkan. Memuat ulang...','success');
+      addLog('Restore data dari backup');
+      setTimeout(()=>location.reload(), 1200);
+    }catch(e){ toast('File backup tidak valid','error'); }
+  };
+  reader.readAsText(file);
+}
+
+/* =========================================================================================
+   20. LOG AKTIVITAS
+   ========================================================================================= */
+function renderLog(){
+  const log = getData(LSK.log);
+  qs('#pageContent').innerHTML = `
+    <div class="card">
+      <div class="section-title"><h3>Log Aktivitas</h3></div>
+      <div class="table-wrap"><table class="data-table">
+        <thead><tr><th>Waktu</th><th>User</th><th>Aktivitas</th></tr></thead>
+        <tbody>${log.map(l=>`<tr><td>${new Date(l.time).toLocaleString('id-ID')}</td><td>${escapeHtml(l.user)}</td><td>${escapeHtml(l.action)}</td></tr>`).join('') || '<tr><td colspan="3" class="small-muted">Belum ada aktivitas.</td></tr>'}</tbody>
+      </table></div>
+    </div>`;
+}
+
+/* =========================================================================================
+   21. HALAMAN PUBLIK — ISI ABSENSI SENDIRI (via QR / Link, tanpa login)
+   ========================================================================================= */
+function checkPublicMode(){
+  const params = new URLSearchParams(location.search);
+  const absenId = params.get('absen');
+  const pesertaId = params.get('peserta');
+  if(absenId || pesertaId){
+    renderPublicPage(absenId, pesertaId);
+    return true;
+  }
+  return false;
+}
+function renderPublicPage(activityId, participantId){
+  qs('#loginPage').classList.add('hidden');
+  qs('#appShell').classList.add('hidden');
+  qs('#publicPage').classList.remove('hidden');
+  const s = getSettings();
+  const acts = getData(LSK.activities).filter(a=>a.active!==false);
+  const participants = getData(LSK.participants);
+  const activity = acts.find(a=>a.id===activityId);
+  const participant = participants.find(p=>p.id===participantId);
+
+  let activitySelectHtml = '';
+  if(!activity){
+    activitySelectHtml = `
+      <div class="form-group"><label>Pilih Kegiatan</label>
+        <select class="form-control" id="pubKegiatan">${acts.map(a=>`<option value="${a.id}">${escapeHtml(a.name)} (${fmtDateID(a.date)})</option>`).join('')}</select>
+      </div>`;
+  }
+
+  qs('#publicWrap').innerHTML = `
+    <div class="public-header">
+      <img src="${s.logo||DEFAULT_LOGO_SVG}">
+      <h2 style="margin:4px 0 0;font-size:18px">${escapeHtml(s.orgName)}</h2>
+      <p style="margin:2px 0 0;font-size:12px;opacity:.85">${escapeHtml(s.groupName)}</p>
+    </div>
+    <div class="public-card">
+      <h3 style="margin-top:0;color:var(--hijau-tua)">Form Daftar Hadir</h3>
+      ${activity? `<p class="small-muted">Kegiatan: <b>${escapeHtml(activity.name)}</b><br>${fmtDateID(activity.date)} · ${activity.timeStart}-${activity.timeEnd}</p>` : activitySelectHtml}
+      <div class="form-group"><label>Nama Lengkap</label><input class="form-control" id="pubNama" value="${participant?escapeHtml(participant.name):''}"></div>
+      <div class="form-group"><label>Jenis Kelamin</label>
+        <div class="radio-group">
+          <label><input type="radio" name="pubGender" value="Pria" ${(!participant||participant.gender==='Pria')?'checked':''}> Pria</label>
+          <label><input type="radio" name="pubGender" value="Wanita" ${participant&&participant.gender==='Wanita'?'checked':''}> Wanita</label>
+        </div>
+      </div>
+      <div class="form-group"><label>Dapukan</label>
+        <select class="form-control" id="pubDapukan">${DAPUKAN_LIST.map(d=>`<option ${participant&&participant.dapukan===d?'selected':''}>${d}</option>`).join('')}</select>
+      </div>
+      <div class="form-group"><label>Zona Waktu</label>
+        <div class="radio-group">
+          <label><input type="radio" name="pubTZ" value="WIB" checked> WIB</label>
+          <label><input type="radio" name="pubTZ" value="WITA"> WITA</label>
+          <label><input type="radio" name="pubTZ" value="WIT"> WIT</label>
+        </div>
+      </div>
+      <div class="form-group"><label>Kehadiran</label>
+        <select class="form-control" id="pubStatus">
+          <option value="Hadir">Hadir</option><option value="Izin">Izin/Berhalangan</option>
+          <option value="Sakit">Sakit</option><option value="Alfa">Alfa</option>
+        </select>
+      </div>
+      <div class="form-group"><label>Infak (Rp) — opsional</label><input type="number" class="form-control" id="pubInfak" value="0" min="0"></div>
+      <div class="form-group"><label>Keterangan</label><input class="form-control" id="pubNote" placeholder="opsional"></div>
+      <div class="form-group"><label>Tanda Tangan</label>
+        <div class="sig-wrap"><canvas id="sigPad"></canvas></div>
+        <button type="button" class="btn btn-outline btn-sm" style="margin-top:6px" onclick="clearSignature()">Bersihkan</button>
+      </div>
+      <button class="btn btn-primary btn-block" style="margin-top:10px" onclick="kirimAbsensiPublik('${activityId||''}','${participantId||''}')">Simpan & Kirim</button>
+    </div>`;
+  setTimeout(initSignaturePad, 60);
+}
+async function kirimAbsensiPublik(activityId, participantId){
+  const nama = qs('#pubNama').value.trim();
+  if(!nama){ toast('Nama wajib diisi','error'); return; }
+  let actId = activityId || qs('#pubKegiatan')?.value;
+  const acts = getData(LSK.activities);
+  const activity = acts.find(a=>a.id===actId) || {};
+  const rec = {
+    id: uid(), participantId: participantId||'', participantName: nama,
+    gender: qs('input[name=pubGender]:checked')?.value || 'Pria',
+    dapukan: qs('#pubDapukan').value,
+    activityId: actId, activityName: activity.name || '',
+    timezone: qs('input[name=pubTZ]:checked')?.value || 'WIB',
+    status: qs('#pubStatus').value,
+    infak: Number(qs('#pubInfak').value)||0,
+    note: qs('#pubNote').value.trim(),
+    signature: getSignatureData(),
+    createdAt: nowISO()
+  };
+  const att = getData(LSK.attendance);
+  att.push(rec);
+  setData(LSK.attendance, att);
+  await sendToSheets('Attendance','create',rec);
+
+  const s = getSettings();
+  qs('#publicWrap').innerHTML = `
+    <div class="public-header"><img src="${s.logo||DEFAULT_LOGO_SVG}"></div>
+    <div class="public-card center">
+      <div class="success-check">✓</div>
+      <h3>Absensi Berhasil Dikirim</h3>
+      <p class="small-muted">Terima kasih ${escapeHtml(nama)}, sudah berpartisipasi.</p>
+      <p style="font-weight:700">${fmtDateID(new Date())} · ${fmtTime(rec.createdAt)} ${rec.timezone}</p>
+    </div>`;
+}
+
+/* =========================================================================================
+   22. INISIALISASI APLIKASI
+   ========================================================================================= */
+async function initApp(){
+  await seedIfEmpty();
+  applyBranding();
+  if(checkPublicMode()) return;
+  if(getSession()){ showApp(); } else { showLogin(); }
+  initRouter();
+  flushQueue();
+}
+initApp();
+
+</script>
+</body>
+</html>
